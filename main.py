@@ -27,8 +27,12 @@ except:
 windowWidth  = 600 # window dimensions
 windowHeight =  800
 
-factor = 1 # factor by which luminance is scaled
-
+##
+# The intensity of the pixels is controlled by the Y component in
+# YCbCr. Therefore the linear transform x' = m x + b can be used where
+# m varies the contrast and b varies the brightness
+factorBrightness = 1 # factor by which luminance is scaled (brightness)
+factorContrast = 1 # factor by which the luminance is scaled (contrast)
 
 
 # Image directory and pathe to image file
@@ -77,8 +81,9 @@ def buildImage():
       y,cb,cr = srcPixels[i,j]
 
       # ---- MODIFY PIXEL ----
-
-      y = int(factor * y)
+      # Contrast factor changes the slope of the transform while the brightness factor scales the pixel
+      # Scaled factorBrightness by 10 to increase effect of horizontal mouse scroll
+      y = int(factorContrast * y) + (factorBrightness*10)
 
       # write destination pixel (while flipping the image in the vertical direction)
       
@@ -183,22 +188,23 @@ def reshape( newWidth, newHeight ):
 button = None
 initX = 0
 initY = 0
-initFactor = 0
-
+initFactorBrightness = 0
+initfactorContrast = 0
 
 
 # Handle mouse click/unclick
 
 def mouse( btn, state, x, y ):
 
-  global button, initX, initY, initFactor
+  global button, initX, initY, initFactorBrightness, initFactorContrast
 
   if state == GLUT_DOWN:
 
     button = btn
     initX = x
     initY = y
-    initFactor = factor
+    initFactorBrightness = factorBrightness
+    initFactorContrast = factorContrast
 
   elif state == GLUT_UP:
 
@@ -213,12 +219,18 @@ def motion( x, y ):
   diffX = x - initX
   diffY = y - initY
 
-  global factor
+  global factorBrightness
+  global factorContrast
 
-  factor = initFactor + diffX / float(windowWidth)
+#duplicate existing factor calculation and add calculation for contrast using the vertical mouse motion
+ 
+  factorBrightness = initFactorBrightness + diffX / float(windowWidth)
+  factorContrast = initFactorContrast + diffY / float(windowWidth)
 
-  if factor < 0:
-    factor = 0
+  if factorBrightness < 0:
+    factorBrightness = 0
+  if factorContrast < 0:
+    factorContrast = 0
 
   glutPostRedisplay()
   
