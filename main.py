@@ -169,6 +169,64 @@ def display():
 
   glutSwapBuffers()
 
+# histogram equalization function setup very similarly to buildimage function
+def histogramEqualization():
+
+  # Read current image and convert to YCbCr
+
+  src = currentImage.convert( 'YCbCr' )
+  srcPixels = src.load()
+
+  width  = src.size[0]
+  height = src.size[1]
+
+  # Set up a new, blank image of the same size
+  dst = Image.new( 'YCbCr', (width,height) )
+  dstPixels = dst.load()
+
+  # Compute N = total pixels
+  N = width * height
+  numIntensities = 256
+  # setup zeroed arrays to hold original intensity and mapped intensities
+  intensityFrequencyOriginal=[0 for i in range(0,256)]
+  intensityFrequencyNew=[0 for i in range(0,256)]
+
+  # intensity frequencies from image where index is frequency value
+  for i in range(width):
+   for j in range(height):
+     y,cb,cr=srcPixels[i,j]
+     intensityFrequencyOriginal[y]=intensityFrequencyOriginal[y]+1;
+   #done
+  #done
+  
+  sumIntensities = 0  
+
+  # calculate intensity mappings using rolling sum of intensity frequencies
+  for i in range(numIntensities):
+   sumIntensities = sumIntensities + intensityFrequencyOriginal[i]
+   intensityFrequencyNew[i]=round(((numIntensities*sumIntensities)/N)-1)
+   if intensityFrequencyNew[i] < 0:
+    intensityFrequencyNew[i] = 0
+  
+  for i in range(width):
+    for j in range(height):
+
+      # read source pixel
+      
+      y,cb,cr = srcPixels[i,j]
+
+      # ---- MODIFY PIXEL ----
+      y = intensityFrequencyNew[int(y)]
+      # write destination pixel
+      dstPixels[i,j] = (y,cb,cr)
+
+  # Done
+
+  return dst.convert( 'RGB' )
+
+
+
+
 
   
 # Handle keyboard input
@@ -187,6 +245,13 @@ def keyboard( key, x, y ):
     outputPath = tkFileDialog.asksaveasfilename( initialdir = '.' )
     if outputPath:
       saveImage( outputPath )
+
+  # add histogram equalization key
+  elif key == 'h':
+    # allow currentImage to be modified
+    global currentImage
+    # set value of currentImage to the transformed image
+    currentImage = histogramEqualization()
 
   else:
     print 'key =', key    # DO NOT REMOVE THIS LINE.  It will be used during automated marking.
