@@ -67,7 +67,6 @@ def buildImage():
   height = src.size[1]
 
   # Set up a new, blank image of the same size
-
   dst = Image.new( 'YCbCr', (width,height) )
   dstPixels = dst.load()
 
@@ -105,7 +104,6 @@ def display():
   glClear( GL_COLOR_BUFFER_BIT )
 
   # rebuild the image
-
   img = buildImage()
 
   width  = img.size[0]
@@ -145,12 +143,67 @@ def keyboard( key, x, y ):
     if outputPath:
       saveImage( outputPath )
 
+  elif key == 'h':
+    histogramEqualization()
+
   else:
     print 'key =', key    # DO NOT REMOVE THIS LINE.  It will be used during automated marking.
 
   glutPostRedisplay()
 
+def histogramEqualization():
 
+  # Read image and convert to YCbCr
+
+  print imgPath
+  src = Image.open( imgPath ).convert( 'YCbCr' )
+  srcPixels = src.load()
+
+  width  = src.size[0]
+  height = src.size[1]
+
+  # Set up a new, blank image of the same size
+  dst = Image.new( 'YCbCr', (width,height) )
+  dstPixels = dst.load()
+
+  # Compute N = total pixels
+  N = width * height
+  print N
+  numIntensities = 256
+  intensityFrequency=[0 for i in range(0,256)]
+
+  # Calculate histogram equalization mappings
+  for i in range(width):
+    for j in range(height):
+      y,cb,cr=srcPixels[i,j]
+      intensityFrequency[y]=intensityFrequency[y]+1;
+  #done
+
+  for i in range(numIntensities):
+    sumIntensities = 0
+    #print intensityFrequency[i]
+    for j in range(i):
+      print intensityFrequency[j]
+      #sumIntensities = sumIntensities+intensityFrequency[j]
+    #print sumIntensities
+    #intensityFrequency[i]=round((numIntensities/N*sumIntensities)-1)
+    #print intensityFrequency[i]
+  
+  for i in range(width):
+    for j in range(height):
+
+      # ---- MODIFY PIXEL ----
+      #print intensityFrequency[y]
+
+      # write destination pixel (while flipping the image in the vertical direction)
+      
+      dstPixels[i,height-j-1] = (y,cb,cr)
+
+  # Done
+
+  return dst.convert( 'RGB' )
+
+  
 
 # Load and save images.
 #
@@ -209,6 +262,7 @@ def mouse( btn, state, x, y ):
   elif state == GLUT_UP:
 
     button = None
+    glutPostRedisplay()  
 
 
 
@@ -231,8 +285,10 @@ def motion( x, y ):
     factorBrightness = 0
   if factorContrast < 0:
     factorContrast = 0
-
-  glutPostRedisplay()
+#In order to apply the operation to the current image, and only
+#display those changes once the mouse has been released. The glutPostRedisplay() 
+#function is only called when the mouse button has been released. i.e. when state == GLUT_UP
+  #glutPostRedisplay()
   
 
     
