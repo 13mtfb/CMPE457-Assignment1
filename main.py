@@ -67,6 +67,7 @@ def buildImage():
   height = src.size[1]
 
   # Set up a new, blank image of the same size
+
   dst = Image.new( 'YCbCr', (width,height) )
   dstPixels = dst.load()
 
@@ -104,6 +105,7 @@ def display():
   glClear( GL_COLOR_BUFFER_BIT )
 
   # rebuild the image
+
   img = buildImage()
 
   width  = img.size[0]
@@ -262,7 +264,6 @@ def mouse( btn, state, x, y ):
   elif state == GLUT_UP:
 
     button = None
-    glutPostRedisplay()  
 
 
 
@@ -285,10 +286,8 @@ def motion( x, y ):
     factorBrightness = 0
   if factorContrast < 0:
     factorContrast = 0
-#In order to apply the operation to the current image, and only
-#display those changes once the mouse has been released. The glutPostRedisplay() 
-#function is only called when the mouse button has been released. i.e. when state == GLUT_UP
-  #glutPostRedisplay()
+
+  glutPostRedisplay()
   
 
     
