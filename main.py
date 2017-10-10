@@ -27,11 +27,15 @@ except:
 windowWidth  = 600 # window dimensions
 windowHeight =  800
 
+#start variable used to control src image being loaded from file
+start = 1
+#flip variable used to control flipping the image to save to file
+flip = 0
 ##
 # The intensity of the pixels is controlled by the Y component in
 # YCbCr. Therefore the linear transform x' = m x + b can be used where
 # m varies the contrast and b varies the brightness
-factorBrightness = 1 # factor by which luminance is scaled (brightness)
+factorBrightness = 0 # factor by which luminance is scaled (brightness)
 factorContrast = 1 # factor by which the luminance is scaled (contrast)
 
 
@@ -57,10 +61,28 @@ root.withdraw()
 
 def buildImage():
 
-  # Read image and convert to YCbCr
+  global start
+  # allow to reset factors upon image load
+  global factorContrast
+  global factorBrightness
+  # allow to flip image upon save
+  global flip
+  
+  # if initializing program or realoading image from file, set src to file image
+  # otherwise, set to the current image
+  # reset factors upon load, so new image isn't distorted 
+  if start == 1:
+   src = Image.open( imgPath ).convert( 'YCbCr' )
+   factorContrast = 1
+   factorBrightness = 0
+   print imgPath
+  else :
+   src = currentImage.convert( 'YCbCr' )
+   #print "next two numbers are transformations:"
+   #print factorContrast
+   #print factorBrightness
 
-  print imgPath
-  src = Image.open( imgPath ).convert( 'YCbCr' )
+
   srcPixels = src.load()
 
   width  = src.size[0]
@@ -82,15 +104,24 @@ def buildImage():
 
       # ---- MODIFY PIXEL ----
       # Contrast factor changes the slope of the transform while the brightness factor scales the pixel
-      # Scaled factorBrightness by 10 to increase effect of horizontal mouse scroll
-      y = int(factorContrast * y) + (factorBrightness*10)
+      # Scaled factorBrightness by 20 to increase effect of horizontal mouse scroll
+      y = int(factorContrast * y) + (factorBrightness*20)
 
       # write destination pixel (while flipping the image in the vertical direction)
-      
-      dstPixels[i,height-j-1] = (y,cb,cr)
+      #only flip pixels when loading new image, otherwise image will have flipped pixels previously
+      if start == 1 or flip == 1:
+       dstPixels[i,height-j-1] = (y,cb,cr)
+      else :
+       dstPixels[i,j] = (y,cb,cr)     
 
-  # Done
-
+  # start variable controls whether image loaded from file (needs flipping) or set to current image (doesn't need flipping)
+ # flip variable used to flip image so that saved image is correct orientation
+  if start == 1:
+    start = 0
+  if flip == 1:
+    flip = 0
+  
+  
   return dst.convert( 'RGB' )
 
 
@@ -98,15 +129,27 @@ def buildImage():
 # Set up the display and draw the current image
 
 def display():
+  
+  #print button
 
   # Clear window
 
   glClearColor ( 1, 1, 1, 0 )
   glClear( GL_COLOR_BUFFER_BIT )
 
+  #define globabl temp and current images
+  global currentImage
+
   # rebuild the image
 
-  img = buildImage()
+  #if button is not pressed (==None), then set current image to transformation
+  #if button is pressed, bypass currentImage set (i.e. don't set current image until button is released)
+  if button == None :
+   currentImage = buildImage()
+   img = currentImage
+   #print "save current image"
+  else :
+   img = buildImage()
 
   width  = img.size[0]
   height = img.size[1]
@@ -145,66 +188,10 @@ def keyboard( key, x, y ):
     if outputPath:
       saveImage( outputPath )
 
-  elif key == 'h':
-    histogramEqualization()
-
   else:
     print 'key =', key    # DO NOT REMOVE THIS LINE.  It will be used during automated marking.
 
   glutPostRedisplay()
-
-def histogramEqualization():
-
-  # Read image and convert to YCbCr
-
-  print imgPath
-  src = Image.open( imgPath ).convert( 'YCbCr' )
-  srcPixels = src.load()
-
-  width  = src.size[0]
-  height = src.size[1]
-
-  # Set up a new, blank image of the same size
-  dst = Image.new( 'YCbCr', (width,height) )
-  dstPixels = dst.load()
-
-  # Compute N = total pixels
-  N = width * height
-  print N
-  numIntensities = 256
-  intensityFrequency=[0 for i in range(0,256)]
-
-  # Calculate histogram equalization mappings
-  for i in range(width):
-    for j in range(height):
-      y,cb,cr=srcPixels[i,j]
-      intensityFrequency[y]=intensityFrequency[y]+1;
-  #done
-
-  for i in range(numIntensities):
-    sumIntensities = 0
-    #print intensityFrequency[i]
-    for j in range(i):
-      print intensityFrequency[j]
-      #sumIntensities = sumIntensities+intensityFrequency[j]
-    #print sumIntensities
-    #intensityFrequency[i]=round((numIntensities/N*sumIntensities)-1)
-    #print intensityFrequency[i]
-  
-  for i in range(width):
-    for j in range(height):
-
-      # ---- MODIFY PIXEL ----
-      #print intensityFrequency[y]
-
-      # write destination pixel (while flipping the image in the vertical direction)
-      
-      dstPixels[i,height-j-1] = (y,cb,cr)
-
-  # Done
-
-  return dst.convert( 'RGB' )
-
   
 
 # Load and save images.
@@ -218,11 +205,15 @@ def loadImage( path ):
 
   global imgPath
   imgPath = path
+  global start
+  start = 1
 
 def saveImage( path ):
 
+  global flip
+  flip = 1
   buildImage().save( path )
-
+  
   
 
 # Handle window reshape
@@ -265,7 +256,8 @@ def mouse( btn, state, x, y ):
 
     button = None
 
-
+  # added redisplay so button release is redrawn using currentImage
+  glutPostRedisplay()
 
 # Handle mouse motion
 
@@ -282,8 +274,6 @@ def motion( x, y ):
   factorBrightness = initFactorBrightness + diffX / float(windowWidth)
   factorContrast = initFactorContrast + diffY / float(windowWidth)
 
-  if factorBrightness < 0:
-    factorBrightness = 0
   if factorContrast < 0:
     factorContrast = 0
 
