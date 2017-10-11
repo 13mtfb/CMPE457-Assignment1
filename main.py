@@ -39,14 +39,17 @@ factorBrightness = 0 # factor by which luminance is scaled (brightness)
 factorContrast = 1 # factor by which the luminance is scaled (contrast)
 
 
-# Image directory and pathe to image file
+# Image directory and path to image file
 
 imgDir      = 'images'
 imgFilename = 'mandrill.png'
 
 imgPath = os.path.join( imgDir, imgFilename )
 
+# Filter director and path to filter name
 
+filDir = 'filters'
+filFilename = 'box3' #placeholdername for filter
 
 # File dialog
 
@@ -224,10 +227,35 @@ def histogramEqualization():
 
   return dst.convert( 'RGB' )
 
+# function loads a filter from a file. Assumes the legality of the file structure as defined in A1.txt. No error checking is done
+def loadFilter():
 
+ path = tkFileDialog.askopenfilename (initialdir = filDir )
+ if path:
+   #define data array
+   data=[] 
+   #open file, if the path exists
+   with open( path ) as f:
+   #read line-by-line and enumerate to determine line numbers
+     for line_num, line in enumerate(f):
+       #split line upon whitespace
+       numbers_str = line.split()
+       #first line contains xdim & ydim
+       if line_num == 0:
+        xdim = int(numbers_str[0])
+        ydim = int(numbers_str[1])
+        #print str(xdim) + " " + str(ydim)
+       #second line contains scaleFactor
+       elif line_num == 1:
+        scaleFactor = float(numbers_str[0])
+        #print scaleFactor
+       else :
+        x = [int(x) for x in numbers_str]
+        data.append(x)
+        
+   #print data
 
-
-
+   
   
 # Handle keyboard input
 
@@ -252,6 +280,10 @@ def keyboard( key, x, y ):
     global currentImage
     # set value of currentImage to the transformed image
     currentImage = histogramEqualization()
+
+  elif key == 'f':
+    # load filter to be modified
+    loadFilter()
 
   else:
     print 'key =', key    # DO NOT REMOVE THIS LINE.  It will be used during automated marking.
