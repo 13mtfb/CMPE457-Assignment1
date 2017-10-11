@@ -4,7 +4,7 @@
 #
 #   numpy, PyOpenGL, Pillow
 
-import sys, os, numpy
+import sys, os, numpy, math
 
 try: # Pillow
   from PIL import Image
@@ -38,6 +38,14 @@ flip = 0
 factorBrightness = 0 # factor by which luminance is scaled (brightness)
 factorContrast = 1 # factor by which the luminance is scaled (contrast)
 
+# Mouse state on initial click
+
+button = None
+initX = 0
+initY = 0
+initFactorBrightness = 0
+initfactorContrast = 1
+radius = -1
 
 # Image directory and path to image file
 
@@ -81,10 +89,6 @@ def buildImage():
    print imgPath
   else :
    src = currentImage.convert( 'YCbCr' )
-   #print "next two numbers are transformations:"
-   #print factorContrast
-   #print factorBrightness
-
 
   srcPixels = src.load()
 
@@ -151,6 +155,10 @@ def display():
    currentImage = buildImage()
    img = currentImage
    #print "save current image"
+  elif button == GLUT_RIGHT_BUTTON:
+   currentImage = filterConvolve()
+   img = currentImage
+   print "save convolved image"
   else :
    img = buildImage()
 
@@ -232,22 +240,51 @@ def filterConvolve():
   global xdim, ydim, scaleFactor, data
   # Read current image and convert to YCbCr
   src = currentImage.convert( 'YCbCr' )
+  dst = currentImage.convert( 'YCbCr' )
   srcPixels = src.load()
-
+  dstPixels = dst.load()
   width  = src.size[0]
   height = src.size[1]
 
-  # Set up a new, blank image of the same size
-  dst = Image.new( 'YCbCr', (width,height) )
-  dstPixels = dst.load()
+  #if radius -1, iterate over entire image, otherwise calculate custom boundaries based on initX, initY and radius
+  if radius == -1:
+   i_start = 0
+   i_end = width
+   j_start = 0
+   j_end = height
+  else :
+   i_start = int((initX-radius)-(windowWidth-width)/2)
+   i_end = int((initX+radius)-(windowWidth-width)/2)
+   j_start = int(height-((initY+radius)-(windowHeight-height)/2))
+   j_end = int(height-((initY-radius)-(windowHeight-height)/2))
+   #print "initX: " + str(initX) + ", initY: " + str(initY)
+   #print "width: " + str(width) + ", height: " + str(height)
+   #print "i_start: " + str(i_start) + ", i-end: " + str(i_end)
+   #print "j_start: " + str(j_start) + ", j-end: " + str(j_end) 
+   #print radius
+   if (i_start < 0):
+    i_start = 0
+   if (i_end > width):
+    i_end = width
+   if (j_start < 0):
+    j_start = 0
+   if (j_end > height):
+    j_end = height
+   
+#   for i in range(i_start,i_end):
+#    for j in range(j_start,j_end):
+#     y,cb,cr = srcPixels[i,j]
+#     dstPixels[i,j] = (0,cb,cr)
 
-  # iterate through all pixels in the output image  
-  for i in range(width):
-    for j in range(height):
+
+  # iterate through all pixels in the output image. If there is a radius calculated, set custom boundaries for iteration
+  for i in range(i_start, i_end):
+    for j in range(j_start, j_end):
       #define
       convolve = 0
       #iterate through all pixels of the kernel filter for each output pixel
       for k in range(xdim):
+        #print xdim
         for l in range(ydim):
           #establish pixel coordinates offset from origin of kernel (which is assumed to be the middle indices) so that input pixels aligns with origin of kernel
           index1=i+int(ydim/2)-l
@@ -261,8 +298,8 @@ def filterConvolve():
           convolve=convolve+y*data[ydim-l-1][xdim-k-1]
 
       # write destination pixel
-      dstPixels[i,j] = (convolve*scaleFactor,cb,cr)
-
+      if ( math.sqrt( (i-(i_start+i_end)/2)**2 + (j-(j_start+j_end)/2)**2 ) <=radius):
+       dstPixels[i,j] = (convolve*scaleFactor,cb,cr)
   # Done
 
   return dst.convert( 'RGB' ) 
@@ -301,7 +338,7 @@ def loadFilter():
 
 def keyboard( key, x, y ):
   # allow currentImage to be modified
-  global currentImage
+  global currentImage, radius
   
   if key == '\033': # ESC = exit
     sys.exit(0)
@@ -328,6 +365,14 @@ def keyboard( key, x, y ):
   elif key == 'a':
     # set value of currentImage to the transformed image
     currentImage = filterConvolve()
+
+  elif key == '+' or key == '=':
+    radius = radius + 1
+
+  elif key == '-' or key == '_':
+    radius = radius - 1
+    if radius < 0:
+     radius = 0
 
   else:
     print 'key =', key    # DO NOT REMOVE THIS LINE.  It will be used during automated marking.
@@ -369,29 +414,30 @@ def reshape( newWidth, newHeight ):
   glutPostRedisplay()
 
 
-
-# Mouse state on initial click
-
-button = None
-initX = 0
-initY = 0
-initFactorBrightness = 0
-initfactorContrast = 0
-
-
 # Handle mouse click/unclick
 
 def mouse( btn, state, x, y ):
 
-  global button, initX, initY, initFactorBrightness, initFactorContrast
+  global button, initX, initY, initFactorBrightness, initFactorContrast, factorBrightness, factorContrast, radius
 
   if state == GLUT_DOWN:
 
     button = btn
     initX = x
     initY = y
-    initFactorBrightness = factorBrightness
-    initFactorContrast = factorContrast
+
+    if button == GLUT_LEFT_BUTTON:
+
+      initFactorBrightness = factorBrightness
+      initFactorContrast = factorContrast
+
+    elif button == GLUT_RIGHT_BUTTON:
+
+      initFactorBrightness = 0
+      initFactorContrast = 1
+      factorBrightness = 0
+      factorContrast = 1
+      radius = 1
 
   elif state == GLUT_UP:
 
@@ -407,13 +453,18 @@ def motion( x, y ):
   diffX = x - initX
   diffY = y - initY
 
-  global factorBrightness
-  global factorContrast
+  global factorBrightness, factorContrast, radius
 
 #duplicate existing factor calculation and add calculation for contrast using the vertical mouse motion
- 
-  factorBrightness = initFactorBrightness + diffX / float(windowWidth)
-  factorContrast = initFactorContrast + diffY / float(windowWidth)
+#Only calculate new brightness and contrast if left mouse button used
+
+  if button == GLUT_LEFT_BUTTON: 
+    factorBrightness = initFactorBrightness + diffX / float(windowWidth)
+    factorContrast = initFactorContrast + diffY / float(windowWidth)
+    radius = -1
+
+  elif button == GLUT_RIGHT_BUTTON:
+    radius = math.sqrt(diffX**2+diffY**2)
 
   if factorContrast < 0:
     factorContrast = 0
