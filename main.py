@@ -227,9 +227,49 @@ def histogramEqualization():
 
   return dst.convert( 'RGB' )
 
+# filter convolution function setup very similarly to buildimage function
+def filterConvolve():
+  global xdim, ydim, scaleFactor, data
+  # Read current image and convert to YCbCr
+  src = currentImage.convert( 'YCbCr' )
+  srcPixels = src.load()
+
+  width  = src.size[0]
+  height = src.size[1]
+
+  # Set up a new, blank image of the same size
+  dst = Image.new( 'YCbCr', (width,height) )
+  dstPixels = dst.load()
+
+  # iterate through all pixels in the output image  
+  for i in range(width):
+    for j in range(height):
+      #define
+      convolve = 0
+      #iterate through all pixels of the kernel filter for each output pixel
+      for k in range(xdim):
+        for l in range(ydim):
+          #establish pixel coordinates offset from origin of kernel (which is assumed to be the middle indices) so that input pixels aligns with origin of kernel
+          index1=i+int(ydim/2)-l
+          index2=j+int(xdim/2)-k
+          #read src pixel if inside array range, otherwise set to 0
+          if (index1<0 or index1>=width or index2<0 or index2>=height):
+            y=0
+          else :
+            y,cb,cr=srcPixels[index1,index2]
+          #create sum of partial products for each coordinate in the kernel image
+          convolve=convolve+y*data[ydim-l-1][xdim-k-1]
+
+      # write destination pixel
+      dstPixels[i,j] = (convolve*scaleFactor,cb,cr)
+
+  # Done
+
+  return dst.convert( 'RGB' ) 
+
 # function loads a filter from a file. Assumes the legality of the file structure as defined in A1.txt. No error checking is done
 def loadFilter():
-
+ global xdim,ydim,scaleFactor,data
  path = tkFileDialog.askopenfilename (initialdir = filDir )
  if path:
    #define data array
@@ -260,7 +300,9 @@ def loadFilter():
 # Handle keyboard input
 
 def keyboard( key, x, y ):
-
+  # allow currentImage to be modified
+  global currentImage
+  
   if key == '\033': # ESC = exit
     sys.exit(0)
 
@@ -276,14 +318,16 @@ def keyboard( key, x, y ):
 
   # add histogram equalization key
   elif key == 'h':
-    # allow currentImage to be modified
-    global currentImage
     # set value of currentImage to the transformed image
     currentImage = histogramEqualization()
 
   elif key == 'f':
     # load filter to be modified
     loadFilter()
+
+  elif key == 'a':
+    # set value of currentImage to the transformed image
+    currentImage = filterConvolve()
 
   else:
     print 'key =', key    # DO NOT REMOVE THIS LINE.  It will be used during automated marking.
